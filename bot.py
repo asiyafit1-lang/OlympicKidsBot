@@ -18,7 +18,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SHEET_URL = "https://script.google.com/macros/s/AKfycbwa_-fTFUbgKv48Yk3kOnZ-WwywfUACcHS-nCu-UfdN0YFn8eqxg5on67P9D3mURnqh8g/exec"
+SHEET_URL = "https://script.google.com/macros/s/AKfycbxDM7E6L37hjloR6cIO9906YSIEU6Ru4n74XNpRLxQ-zrbNmh1a4xGpyDyOMLDaMiNX5w/exec"
 
 NAME, AGE, SPORT, WEIGHT_HEIGHT, SESSIONS, GOAL = range(6)
 
