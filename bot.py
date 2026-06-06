@@ -1,5 +1,7 @@
 import os
 import logging
+import requests
+from datetime import datetime
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -16,10 +18,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# مراحل ثبت‌نام
+SHEET_URL = "https://script.google.com/macros/s/AKfycbwa_-fTFUbgKv48Yk3kOnZ-WwywfUACcHS-nCu-UfdN0YFn8eqxg5on67P9D3mURnqh8g/exec"
+
 NAME, AGE, SPORT, WEIGHT_HEIGHT, SESSIONS, GOAL = range(6)
 
-# ذخیره پروفایل کاربران
 user_profiles = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -72,6 +74,7 @@ async def get_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['goal'] = update.message.text
     user_id = update.effective_user.id
+    parent_name = update.effective_user.full_name
     user_profiles[user_id] = context.user_data.copy()
 
     name = context.user_data['name']
@@ -80,6 +83,23 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     wh = context.user_data['weight_height']
     sessions = context.user_data['sessions']
     goal = context.user_data['goal']
+
+    # ذخیره در Google Sheet
+    try:
+        data = {
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "user_id": str(user_id),
+            "parent_name": parent_name,
+            "child_name": name,
+            "age": age,
+            "sport": sport,
+            "weight_height": wh,
+            "sessions": sessions,
+            "goal": goal
+        }
+        requests.post(SHEET_URL, json=data, timeout=10)
+    except Exception as e:
+        logger.error(f"Sheet error: {e}")
 
     await update.message.reply_text(
         f"✅ پروفایل ورزشی با موفقیت ساخته شد!\n\n"
