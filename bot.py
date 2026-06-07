@@ -25,6 +25,7 @@ NAME, AGE, SPORT, WEIGHT_HEIGHT, SESSIONS, GOAL = range(6)
 user_profiles = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.clear()
     await update.message.reply_text(
         "سلام! به ربات کودک المپیکی خوش اومدی! 🏅\n\n"
         "بریم پروفایل ورزشی بسازیم 💪\n\n"
