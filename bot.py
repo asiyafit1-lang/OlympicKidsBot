@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 SHEET_URL = "https://script.google.com/macros/s/AKfycbxDM7E6L37hjloR6cIO9906YSIEU6Ru4n74XNpRLxQ-zrbNmh1a4xGpyDyOMLDaMiNX5w/exec"
 
-NAME, AGE, SPORT, WEIGHT_HEIGHT, SESSIONS, GOAL = range(6)
+NAME, AGE, SPORT, WEIGHT, HEIGHT, PHONE, SESSIONS, GOAL = range(8)
 
 user_profiles = {}
 
@@ -51,13 +51,29 @@ async def get_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def get_sport(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['sport'] = update.message.text
     await update.message.reply_text(
-        f"وزن و قد {context.user_data['name']} چقدره؟ ⚖️\n"
-        "مثال: ۳۵/۱۳۵"
+        f"وزن {context.user_data['name']} چقدره؟ ⚖️\n"
+        "مثال: ۳۵"
     )
-    return WEIGHT_HEIGHT
+    return WEIGHT
 
-async def get_weight_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['weight_height'] = update.message.text
+async def get_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['weight'] = update.message.text
+    await update.message.reply_text(
+        f"قد {context.user_data['name']} چقدره؟ 📏\n"
+        "مثال: ۱۳۵"
+    )
+    return HEIGHT
+
+async def get_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['height'] = update.message.text
+    await update.message.reply_text(
+        "شماره تماس والدین چیه؟ 📱\n"
+        "مثال: ۰۹۱۲۱۲۳۴۵۶۷"
+    )
+    return PHONE
+
+async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['phone'] = update.message.text
     await update.message.reply_text(
         f"{context.user_data['name']} چند جلسه در هفته تمرین می‌کنه؟ 🗓️\n"
         "مثال: ۳ جلسه"
@@ -81,11 +97,12 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     name = context.user_data['name']
     age = context.user_data['age']
     sport = context.user_data['sport']
-    wh = context.user_data['weight_height']
+    weight = context.user_data['weight']
+    height = context.user_data['height']
+    phone = context.user_data['phone']
     sessions = context.user_data['sessions']
     goal = context.user_data['goal']
 
-    # ذخیره در Google Sheet
     try:
         data = {
             "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -94,7 +111,9 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             "child_name": name,
             "age": age,
             "sport": sport,
-            "weight_height": wh,
+            "weight": weight,
+            "height": height,
+            "phone": phone,
             "sessions": sessions,
             "goal": goal
         }
@@ -109,12 +128,14 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         f"👤 نام: {name}\n"
         f"🎂 سن: {age} سال\n"
         f"⚽ رشته ورزشی: {sport}\n"
-        f"⚖️ وزن و قد: {wh}\n"
+        f"⚖️ وزن: {weight} کیلوگرم\n"
+        f"📏 قد: {height} سانتی‌متر\n"
+        f"📱 شماره تماس: {phone}\n"
         f"📅 جلسات تمرین: {sessions} در هفته\n"
         f"🎯 هدف: {goal}\n"
         f"─────────────────\n\n"
         f"💪🌟 آفرین! {name} عزیز، مطمئنم یه روز قهرمان می‌شی!\n\n"
-        f"برای دیدن پروفایل دوباره /profile بزن."
+        f"برای ویرایش پروفایل /start بزن."
     )
     return ConversationHandler.END
 
@@ -128,7 +149,9 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"👤 نام: {p['name']}\n"
             f"🎂 سن: {p['age']} سال\n"
             f"⚽ رشته ورزشی: {p['sport']}\n"
-            f"⚖️ وزن و قد: {p['weight_height']}\n"
+            f"⚖️ وزن: {p['weight']} کیلوگرم\n"
+            f"📏 قد: {p['height']} سانتی‌متر\n"
+            f"📱 شماره تماس: {p['phone']}\n"
             f"📅 جلسات تمرین: {p['sessions']} در هفته\n"
             f"🎯 هدف: {p['goal']}\n"
         )
@@ -138,6 +161,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.clear()
     await update.message.reply_text("ثبت‌نام لغو شد. هر وقت خواستی /start بزن! 😊")
     return ConversationHandler.END
 
@@ -154,11 +178,17 @@ def main() -> None:
             NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
             AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)],
             SPORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_sport)],
-            WEIGHT_HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight_height)],
+            WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)],
+            HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)],
+            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
             SESSIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_sessions)],
             GOAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_goal)],
         },
-        fallbacks=[CommandHandler("cancel", cancel), CommandHandler("start", start)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CommandHandler("start", start),
+        ],
+        allow_reentry=True,
     )
 
     app.add_handler(conv_handler)
