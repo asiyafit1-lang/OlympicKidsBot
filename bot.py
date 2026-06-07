@@ -158,7 +158,7 @@ def main() -> None:
             SESSIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_sessions)],
             GOAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_goal)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[CommandHandler("cancel", cancel), CommandHandler("start", start)],
     )
 
     app.add_handler(conv_handler)
