@@ -210,14 +210,14 @@ def main() -> None:
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
-            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
-            AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)],
-            HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)],
-            WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)],
-            SPORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_sport)],
-            SESSIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_sessions)],
-            GOAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_goal)],
+            PHONE: [MessageHandler(filters.TEXT, get_phone)],
+            NAME: [MessageHandler(filters.TEXT, get_name)],
+            AGE: [MessageHandler(filters.TEXT, get_age)],
+            HEIGHT: [MessageHandler(filters.TEXT, get_height)],
+            WEIGHT: [MessageHandler(filters.TEXT, get_weight)],
+            SPORT: [MessageHandler(filters.TEXT, get_sport)],
+            SESSIONS: [MessageHandler(filters.TEXT, get_sessions)],
+            GOAL: [MessageHandler(filters.TEXT, get_goal)],
         },
         fallbacks=[
             CommandHandler("cancel", cancel),
