@@ -159,7 +159,7 @@ async def analyze_photos_with_gemini(photos_data: list, profile: dict) -> str:
                     "data": photo_b64
                 }
             })
-        
+
         prompt = f"""تو یک متخصص ارزیابی بدنی ورزشی هستی. لطفاً این عکس‌های بدنی را با دقت بالا آنالیز کن.
 
 اطلاعات ورزشکار:
@@ -189,17 +189,22 @@ async def analyze_photos_with_gemini(photos_data: list, profile: dict) -> str:
             }
         }
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-        response = requests.post(url, json=payload, timeout=30)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+        response = requests.post(url, json=payload, timeout=60)
         result = response.json()
+
+        logger.info(f"Gemini response: {result}")
 
         if "candidates" in result:
             return result["candidates"][0]["content"]["parts"][0]["text"]
+        elif "error" in result:
+            logger.error(f"Gemini error: {result['error']}")
+            return f"خطا در آنالیز: {result['error'].get('message', 'نامشخص')}"
         else:
             return "متأسفانه در آنالیز عکس مشکلی پیش آمد. لطفاً دوباره تلاش کنید."
 
     except Exception as e:
-        logger.error(f"Gemini error: {e}")
+        logger.error(f"Gemini exception: {e}")
         return "متأسفانه در آنالیز عکس مشکلی پیش آمد. لطفاً دوباره تلاش کنید."
 
 async def body_analysis_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -252,7 +257,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         profile = user_profiles.get(user_id, {})
         analysis = await analyze_photos_with_gemini(photo_collection[user_id], profile)
-
         photo_collection.pop(user_id, None)
 
         keyboard = [["📸 آنالیز بدنی"], ["👤 مشاهده پروفایل"]]
