@@ -20,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 SHEET_URL = "https://script.google.com/macros/s/AKfycbxDM7E6L37hjloR6cIO9906YSIEU6Ru4n74XNpRLxQ-zrbNmh1a4xGpyDyOMLDaMiNX5w/exec"
-GEMINI_API_KEY = "AQ.Ab8RN6KhrQ7HfJJOfp5rQX1WTQ7_8wy8SuS0FkNjlllzmZsqBQ"
+OPENROUTER_API_KEY = "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"
 
 PHONE, NAME, AGE, HEIGHT, WEIGHT, SPORT, SESSIONS, GOAL = range(8)
 
@@ -149,18 +149,20 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return ConversationHandler.END
 
-async def analyze_photos_with_gemini(photos_data: list, profile: dict) -> str:
+async def analyze_photos(photos_data: list, profile: dict) -> str:
     try:
-        parts = []
+        images_content = []
         for photo_b64 in photos_data:
-            parts.append({
-                "inline_data": {
-                    "mime_type": "image/jpeg",
-                    "data": photo_b64
+            images_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{photo_b64}"
                 }
             })
 
-        prompt = f"""تو یک متخصص ارزیابی بدنی ورزشی هستی. لطفاً این عکس‌های بدنی را با دقت بالا آنالیز کن.
+        images_content.append({
+            "type": "text",
+            "text": f"""تو یک متخصص ارزیابی بدنی ورزشی هستی. این عکس‌های بدنی را با دقت آنالیز کن.
 
 اطلاعات ورزشکار:
 - نام: {profile.get('name', 'نامشخص')}
@@ -170,71 +172,73 @@ async def analyze_photos_with_gemini(photos_data: list, profile: dict) -> str:
 - رشته ورزشی: {profile.get('sport', 'نامشخص')}
 - هدف: {profile.get('goal', 'نامشخص')}
 
-لطفاً موارد زیر را بررسی کن:
+لطفاً بررسی کن:
 1. وضعیت قامتی (پوسچر)
 2. تناسب اندام کلی
 3. نقاط قوت بدنی
 4. نکاتی که باید بهبود یابد
-5. توصیه‌های ورزشی مناسب برای این کودک
+5. توصیه‌های ورزشی مناسب
 
-پاسخ را به فارسی و به صورت کامل و حرفه‌ای بده."""
+پاسخ را به فارسی بده."""
+        })
 
-        parts.append({"text": prompt})
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "google/gemini-2.0-flash-exp:free",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": images_content
+                    }
+                ]
+            },
+            timeout=60
+        )
 
-        payload = {
-            "contents": [{"parts": parts}],
-            "generationConfig": {
-                "temperature": 0.7,
-                "maxOutputTokens": 1000
-            }
-        }
-
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
-        response = requests.post(url, json=payload, timeout=60)
         result = response.json()
+        logger.info(f"OpenRouter response: {result}")
 
-        logger.info(f"Gemini response: {result}")
-
-        if "candidates" in result:
-            return result["candidates"][0]["content"]["parts"][0]["text"]
+        if "choices" in result:
+            return result["choices"][0]["message"]["content"]
         elif "error" in result:
-            logger.error(f"Gemini error: {result['error']}")
-            return f"خطا در آنالیز: {result['error'].get('message', 'نامشخص')}"
+            return f"خطا: {result['error'].get('message', 'نامشخص')}"
         else:
-            return "متأسفانه در آنالیز عکس مشکلی پیش آمد. لطفاً دوباره تلاش کنید."
+            return "متأسفانه مشکلی پیش آمد. دوباره تلاش کنید."
 
     except Exception as e:
-        logger.error(f"Gemini exception: {e}")
-        return "متأسفانه در آنالیز عکس مشکلی پیش آمد. لطفاً دوباره تلاش کنید."
+        logger.error(f"OpenRouter error: {e}")
+        return f"خطا در اتصال: {str(e)}"
 
 async def body_analysis_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     photo_collection[user_id] = []
     await update.message.reply_text(
         "📸 آنالیز بدنی هوشمند\n\n"
-        "برای اینکه بتونیم بهترین برنامه ورزشی رو برای فرزندتون طراحی کنیم، "
-        "نیاز به ارزیابی بدنی داریم.\n\n"
+        "برای طراحی بهترین برنامه ورزشی برای فرزندتون نیاز به ارزیابی بدنی داریم.\n\n"
         "🔒 حریم خصوصی: عکس‌ها فقط توسط هوش مصنوعی آنالیز میشن و ذخیره نمیشن.\n\n"
-        "لطفاً ۳ عکس از فرزندتون بفرستید:\n"
+        "لطفاً ۳ عکس بفرستید:\n"
         "1️⃣ از جلو\n"
         "2️⃣ از بغل\n"
         "3️⃣ از پشت\n\n"
         "👦 پسران: شلوارک و بدون لباس\n"
         "👧 دختران: شلوارک و نیم‌تنه ورزشی\n\n"
-        "با فرستادن عکس، رضایت خود را برای آنالیز اعلام می‌کنید. ✅\n\n"
-        "لطفاً عکس اول (از جلو) را بفرستید 👇"
+        "با فرستادن عکس رضایت خود را اعلام می‌کنید. ✅\n\n"
+        "عکس اول (از جلو) را بفرستید 👇"
     )
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
 
     if user_id not in photo_collection:
-        await update.message.reply_text(
-            "برای آنالیز بدنی اول دکمه 📸 آنالیز بدنی رو بزن! 😊"
-        )
+        await update.message.reply_text("اول دکمه 📸 آنالیز بدنی رو بزن! 😊")
         return
 
-    await update.message.reply_text("⏳ عکس دریافت شد، در حال پردازش...")
+    await update.message.reply_text("⏳ عکس دریافت شد...")
 
     photo = update.message.photo[-1]
     photo_file = await context.bot.get_file(photo.file_id)
@@ -245,18 +249,16 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     count = len(photo_collection[user_id])
 
     if count == 1:
-        await update.message.reply_text("✅ عکس جلو دریافت شد!\nحالا عکس از بغل بفرست 👇")
+        await update.message.reply_text("✅ عکس جلو دریافت شد!\nعکس از بغل بفرست 👇")
     elif count == 2:
-        await update.message.reply_text("✅ عکس بغل دریافت شد!\nحالا عکس از پشت بفرست 👇")
+        await update.message.reply_text("✅ عکس بغل دریافت شد!\nعکس از پشت بفرست 👇")
     elif count >= 3:
         await update.message.reply_text(
             "✅ همه عکس‌ها دریافت شد!\n\n"
-            "🤖 در حال آنالیز بدنی با هوش مصنوعی...\n"
-            "این ممکنه چند ثانیه طول بکشه ⏳"
+            "🤖 در حال آنالیز با هوش مصنوعی...\n⏳"
         )
-
         profile = user_profiles.get(user_id, {})
-        analysis = await analyze_photos_with_gemini(photo_collection[user_id], profile)
+        analysis = await analyze_photos(photo_collection[user_id], profile)
         photo_collection.pop(user_id, None)
 
         keyboard = [["📸 آنالیز بدنی"], ["👤 مشاهده پروفایل"]]
@@ -287,9 +289,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             reply_markup=reply_markup
         )
     else:
-        await update.message.reply_text(
-            "هنوز پروفایلی نداری! /start بزن تا بسازیم 😊"
-        )
+        await update.message.reply_text("هنوز پروفایلی نداری! /start بزن 😊")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text
@@ -301,7 +301,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
     await update.message.reply_text(
-        "ثبت‌نام لغو شد. هر وقت خواستی /start بزن! 😊",
+        "لغو شد. هر وقت خواستی /start بزن! 😊",
         reply_markup=ReplyKeyboardRemove()
     )
     return ConversationHandler.END
@@ -337,7 +337,7 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    logger.info("Bot is running. Press Ctrl+C to stop.")
+    logger.info("Bot is running.")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
