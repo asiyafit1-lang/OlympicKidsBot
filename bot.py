@@ -1,9 +1,7 @@
 import os
 import logging
 import requests
-import base64
 from datetime import datetime
-import anthropic
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application,
@@ -21,14 +19,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 SHEET_URL = "https://script.google.com/macros/s/AKfycbxDM7E6L37hjloR6cIO9906YSIEU6Ru4n74XNpRLxQ-zrbNmh1a4xGpyDyOMLDaMiNX5w/exec"
-CLAUDE_API_KEY = "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"
-
-claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
 
 PHONE, NAME, AGE, HEIGHT, WEIGHT, SPORT, SESSIONS, GOAL = range(8)
 
 user_profiles = {}
-photo_collection = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
@@ -122,7 +116,7 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     except Exception as e:
         logger.error(f"Sheet error: {e}")
 
-    keyboard = [["📸 آنالیز بدنی"], ["👤 مشاهده پروفایل"]]
+    keyboard = [["👤 مشاهده پروفایل"]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
     await update.message.reply_text(
@@ -144,113 +138,11 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return ConversationHandler.END
 
-async def analyze_photos(photos_data: list, profile: dict) -> str:
-    try:
-        content = []
-        for photo_b64 in photos_data:
-            content.append({
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/jpeg",
-                    "data": photo_b64
-                }
-            })
-
-        content.append({
-            "type": "text",
-            "text": f"""تو یک متخصص ارزیابی بدنی ورزشی هستی. این عکس‌های بدنی را با دقت آنالیز کن.
-
-اطلاعات ورزشکار:
-- نام: {profile.get('name', 'نامشخص')}
-- سن: {profile.get('age', 'نامشخص')} سال
-- قد: {profile.get('height', 'نامشخص')} سانتی‌متر
-- وزن: {profile.get('weight', 'نامشخص')} کیلوگرم
-- رشته ورزشی: {profile.get('sport', 'نامشخص')}
-- هدف: {profile.get('goal', 'نامشخص')}
-
-لطفاً بررسی کن:
-1. وضعیت قامتی (پوسچر)
-2. تناسب اندام کلی
-3. نقاط قوت بدنی
-4. نکاتی که باید بهبود یابد
-5. توصیه‌های ورزشی مناسب
-
-پاسخ را به فارسی و کامل بده."""
-        })
-
-        response = claude_client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=1000,
-            messages=[{"role": "user", "content": content}]
-        )
-
-        return response.content[0].text
-
-    except Exception as e:
-        logger.error(f"Claude error: {e}")
-        return f"خطا: {str(e)}"
-
-async def body_analysis_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_id = update.effective_user.id
-    photo_collection[user_id] = []
-    await update.message.reply_text(
-        "📸 آنالیز بدنی هوشمند\n\n"
-        "برای طراحی بهترین برنامه ورزشی نیاز به ارزیابی بدنی داریم.\n\n"
-        "🔒 حریم خصوصی: عکس‌ها فقط توسط هوش مصنوعی آنالیز میشن و ذخیره نمیشن.\n\n"
-        "لطفاً ۳ عکس بفرستید:\n"
-        "1️⃣ از جلو\n"
-        "2️⃣ از بغل\n"
-        "3️⃣ از پشت\n\n"
-        "👦 پسران: شلوارک و بدون لباس\n"
-        "👧 دختران: شلوارک و نیم‌تنه ورزشی\n\n"
-        "با فرستادن عکس رضایت خود را اعلام می‌کنید. ✅\n\n"
-        "عکس اول (از جلو) را بفرستید 👇"
-    )
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_id = update.effective_user.id
-
-    if user_id not in photo_collection:
-        await update.message.reply_text("اول دکمه 📸 آنالیز بدنی رو بزن! 😊")
-        return
-
-    await update.message.reply_text("⏳ عکس دریافت شد...")
-
-    photo = update.message.photo[-1]
-    photo_file = await context.bot.get_file(photo.file_id)
-    photo_bytes = await photo_file.download_as_bytearray()
-    photo_b64 = base64.b64encode(photo_bytes).decode('utf-8')
-    photo_collection[user_id].append(photo_b64)
-
-    count = len(photo_collection[user_id])
-
-    if count == 1:
-        await update.message.reply_text("✅ عکس جلو دریافت شد!\nعکس از بغل بفرست 👇")
-    elif count == 2:
-        await update.message.reply_text("✅ عکس بغل دریافت شد!\nعکس از پشت بفرست 👇")
-    elif count >= 3:
-        await update.message.reply_text(
-            "✅ همه عکس‌ها دریافت شد!\n\n"
-            "🤖 در حال آنالیز با هوش مصنوعی...\n⏳"
-        )
-        profile = user_profiles.get(user_id, {})
-        analysis = await analyze_photos(photo_collection[user_id], profile)
-        photo_collection.pop(user_id, None)
-
-        keyboard = [["📸 آنالیز بدنی"], ["👤 مشاهده پروفایل"]]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-        await update.message.reply_text(
-            f"🏋️ نتیجه آنالیز بدنی:\n\n{analysis}",
-            reply_markup=reply_markup
-        )
-
 async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     if user_id in user_profiles:
         p = user_profiles[user_id]
-        keyboard = [["📸 آنالیز بدنی"], ["👤 مشاهده پروفایل"]]
+        keyboard = [["👤 مشاهده پروفایل"]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
             f"🏅 پروفایل قهرمان کوچک\n"
@@ -270,9 +162,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text
-    if text == "📸 آنالیز بدنی":
-        await body_analysis_info(update, context)
-    elif text == "👤 مشاهده پروفایل":
+    if text == "👤 مشاهده پروفایل":
         await profile_command(update, context)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -311,7 +201,6 @@ def main() -> None:
 
     app.add_handler(conv_handler)
     app.add_handler(CommandHandler("profile", profile_command))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     logger.info("Bot is running.")
