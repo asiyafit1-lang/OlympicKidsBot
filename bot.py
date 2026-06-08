@@ -86,7 +86,6 @@ async def get_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['goal'] = update.message.text
     user_id = update.effective_user.id
-    parent_name = update.effective_user.full_name
     user_profiles[user_id] = context.user_data.copy()
 
     name = context.user_data['name']
@@ -101,14 +100,13 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         data = {
             "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "phone": phone,
             "user_id": str(user_id),
-            "parent_name": parent_name,
             "child_name": name,
             "age": age,
-            "sport": sport,
-            "weight": weight,
             "height": height,
-            "phone": phone,
+            "weight": weight,
+            "sport": sport,
             "sessions": sessions,
             "goal": goal
         }
