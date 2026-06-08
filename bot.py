@@ -36,16 +36,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return PHONE
 
 async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message or not update.message.text:
+        await update.message.reply_text("لطفاً شماره تماس رو تایپ کنید 📱")
+        return PHONE
     context.user_data['phone'] = update.message.text
     await update.message.reply_text("ممنون! 😊\n\nاسم و فامیل فرزندتون رو بنویسید 👤")
     return NAME
 
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message or not update.message.text:
+        await update.message.reply_text("لطفاً اسم و فامیل فرزندتون رو تایپ کنید 👤")
+        return NAME
     context.user_data['name'] = update.message.text
     await update.message.reply_text(f"{context.user_data['name']} چند سالشه؟ 🎂")
     return AGE
 
 async def get_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message or not update.message.text:
+        await update.message.reply_text("لطفاً سن رو تایپ کنید 🎂")
+        return AGE
     context.user_data['age'] = update.message.text
     await update.message.reply_text(
         f"قد {context.user_data['name']} چقدره؟ 📏\nمثال: ۱۳۵ (سانتی‌متر)"
@@ -53,6 +62,9 @@ async def get_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return HEIGHT
 
 async def get_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message or not update.message.text:
+        await update.message.reply_text("لطفاً قد رو تایپ کنید 📏")
+        return HEIGHT
     context.user_data['height'] = update.message.text
     await update.message.reply_text(
         f"وزن {context.user_data['name']} چقدره؟ ⚖️\nمثال: ۳۵ (کیلوگرم)"
@@ -60,6 +72,9 @@ async def get_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return WEIGHT
 
 async def get_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message or not update.message.text:
+        await update.message.reply_text("لطفاً وزن رو تایپ کنید ⚖️")
+        return WEIGHT
     context.user_data['weight'] = update.message.text
     await update.message.reply_text(
         f"رشته ورزشی {context.user_data['name']} چیه؟ ⚽🥊🏊\n"
@@ -69,6 +84,9 @@ async def get_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return SPORT
 
 async def get_sport(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message or not update.message.text:
+        await update.message.reply_text("لطفاً رشته ورزشی رو تایپ کنید ⚽")
+        return SPORT
     context.user_data['sport'] = update.message.text
     await update.message.reply_text(
         f"{context.user_data['name']} چند روز در هفته تحرک جدی و ورزش داره؟ 🗓️\nمثال: ۳ روز"
@@ -76,6 +94,9 @@ async def get_sport(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return SESSIONS
 
 async def get_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message or not update.message.text:
+        await update.message.reply_text("لطفاً تعداد روزها رو تایپ کنید 🗓️")
+        return SESSIONS
     context.user_data['sessions'] = update.message.text
     await update.message.reply_text(
         f"هدف ورزشی {context.user_data['name']} چیه؟ 🎯\n"
@@ -84,6 +105,9 @@ async def get_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     return GOAL
 
 async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message or not update.message.text:
+        await update.message.reply_text("لطفاً هدف ورزشی رو تایپ کنید 🎯")
+        return GOAL
     context.user_data['goal'] = update.message.text
     user_id = update.effective_user.id
     user_profiles[user_id] = context.user_data.copy()
@@ -159,9 +183,10 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text("هنوز پروفایلی نداری! /start بزن 😊")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    text = update.message.text
-    if text == "👤 مشاهده پروفایل":
-        await profile_command(update, context)
+    if update.message and update.message.text:
+        text = update.message.text
+        if text == "👤 مشاهده پروفایل":
+            await profile_command(update, context)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
@@ -181,14 +206,14 @@ def main() -> None:
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            PHONE: [MessageHandler(filters.TEXT, get_phone)],
-            NAME: [MessageHandler(filters.TEXT, get_name)],
-            AGE: [MessageHandler(filters.TEXT, get_age)],
-            HEIGHT: [MessageHandler(filters.TEXT, get_height)],
-            WEIGHT: [MessageHandler(filters.TEXT, get_weight)],
-            SPORT: [MessageHandler(filters.TEXT, get_sport)],
-            SESSIONS: [MessageHandler(filters.TEXT, get_sessions)],
-            GOAL: [MessageHandler(filters.TEXT, get_goal)],
+            PHONE: [MessageHandler(filters.ALL, get_phone)],
+            NAME: [MessageHandler(filters.ALL, get_name)],
+            AGE: [MessageHandler(filters.ALL, get_age)],
+            HEIGHT: [MessageHandler(filters.ALL, get_height)],
+            WEIGHT: [MessageHandler(filters.ALL, get_weight)],
+            SPORT: [MessageHandler(filters.ALL, get_sport)],
+            SESSIONS: [MessageHandler(filters.ALL, get_sessions)],
+            GOAL: [MessageHandler(filters.ALL, get_goal)],
         },
         fallbacks=[
             CommandHandler("cancel", cancel),
