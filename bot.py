@@ -3,6 +3,7 @@ import logging
 import requests
 import base64
 from datetime import datetime
+import anthropic
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application,
@@ -20,7 +21,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 SHEET_URL = "https://script.google.com/macros/s/AKfycbxDM7E6L37hjloR6cIO9906YSIEU6Ru4n74XNpRLxQ-zrbNmh1a4xGpyDyOMLDaMiNX5w/exec"
-OPENROUTER_API_KEY = "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"
+CLAUDE_API_KEY = "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"
+
+claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
 
 PHONE, NAME, AGE, HEIGHT, WEIGHT, SPORT, SESSIONS, GOAL = range(8)
 
@@ -40,32 +43,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['phone'] = update.message.text
-    await update.message.reply_text(
-        "ممنون! 😊\n\n"
-        "اسم و فامیل فرزندتون رو بنویسید 👤"
-    )
+    await update.message.reply_text("ممنون! 😊\n\nاسم و فامیل فرزندتون رو بنویسید 👤")
     return NAME
 
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['name'] = update.message.text
-    await update.message.reply_text(
-        f"{context.user_data['name']} چند سالشه؟ 🎂"
-    )
+    await update.message.reply_text(f"{context.user_data['name']} چند سالشه؟ 🎂")
     return AGE
 
 async def get_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['age'] = update.message.text
     await update.message.reply_text(
-        f"قد {context.user_data['name']} چقدره؟ 📏\n"
-        "مثال: ۱۳۵ (سانتی‌متر)"
+        f"قد {context.user_data['name']} چقدره؟ 📏\nمثال: ۱۳۵ (سانتی‌متر)"
     )
     return HEIGHT
 
 async def get_height(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['height'] = update.message.text
     await update.message.reply_text(
-        f"وزن {context.user_data['name']} چقدره؟ ⚖️\n"
-        "مثال: ۳۵ (کیلوگرم)"
+        f"وزن {context.user_data['name']} چقدره؟ ⚖️\nمثال: ۳۵ (کیلوگرم)"
     )
     return WEIGHT
 
@@ -81,8 +77,7 @@ async def get_weight(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def get_sport(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['sport'] = update.message.text
     await update.message.reply_text(
-        f"{context.user_data['name']} چند روز در هفته تحرک جدی و ورزش داره؟ 🗓️\n"
-        "مثال: ۳ روز"
+        f"{context.user_data['name']} چند روز در هفته تحرک جدی و ورزش داره؟ 🗓️\nمثال: ۳ روز"
     )
     return SESSIONS
 
@@ -151,16 +146,18 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def analyze_photos(photos_data: list, profile: dict) -> str:
     try:
-        images_content = []
+        content = []
         for photo_b64 in photos_data:
-            images_content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{photo_b64}"
+            content.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": photo_b64
                 }
             })
 
-        images_content.append({
+        content.append({
             "type": "text",
             "text": f"""تو یک متخصص ارزیابی بدنی ورزشی هستی. این عکس‌های بدنی را با دقت آنالیز کن.
 
@@ -179,47 +176,27 @@ async def analyze_photos(photos_data: list, profile: dict) -> str:
 4. نکاتی که باید بهبود یابد
 5. توصیه‌های ورزشی مناسب
 
-پاسخ را به فارسی بده."""
+پاسخ را به فارسی و کامل بده."""
         })
 
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "google/gemini-2.0-flash-exp:free",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": images_content
-                    }
-                ]
-            },
-            timeout=60
+        response = claude_client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1000,
+            messages=[{"role": "user", "content": content}]
         )
 
-        result = response.json()
-        logger.info(f"OpenRouter response: {result}")
-
-        if "choices" in result:
-            return result["choices"][0]["message"]["content"]
-        elif "error" in result:
-            return f"خطا: {result['error'].get('message', 'نامشخص')}"
-        else:
-            return "متأسفانه مشکلی پیش آمد. دوباره تلاش کنید."
+        return response.content[0].text
 
     except Exception as e:
-        logger.error(f"OpenRouter error: {e}")
-        return f"خطا در اتصال: {str(e)}"
+        logger.error(f"Claude error: {e}")
+        return f"خطا: {str(e)}"
 
 async def body_analysis_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     photo_collection[user_id] = []
     await update.message.reply_text(
         "📸 آنالیز بدنی هوشمند\n\n"
-        "برای طراحی بهترین برنامه ورزشی برای فرزندتون نیاز به ارزیابی بدنی داریم.\n\n"
+        "برای طراحی بهترین برنامه ورزشی نیاز به ارزیابی بدنی داریم.\n\n"
         "🔒 حریم خصوصی: عکس‌ها فقط توسط هوش مصنوعی آنالیز میشن و ذخیره نمیشن.\n\n"
         "لطفاً ۳ عکس بفرستید:\n"
         "1️⃣ از جلو\n"
