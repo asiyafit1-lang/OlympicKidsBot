@@ -19,6 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 SHEET_URL = "https://script.google.com/macros/s/AKfycbyyK6i3ihFBBNiMMF94tX7h01U4Ymx5HZgydfCLN1jM0y7gwo-uU33s-E9eNVu0Xr0m/exec"
+GROQ_API_KEY = "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"
 
 PHONE, NAME, AGE, HEIGHT, WEIGHT, SPORT, SESSIONS, GOAL = range(8)
 
@@ -33,6 +34,48 @@ def get_profile_from_sheet(user_id: str) -> dict:
     except Exception as e:
         logger.error(f"Sheet read error: {e}")
     return {}
+
+def get_nutrition_plan(profile: dict) -> str:
+    try:
+        prompt = f"""تو یک متخصص تغذیه ورزشی برای کودکان هستی. 
+یک برنامه غذایی روزانه کامل و سالم برای این کودک ورزشکار طراحی کن:
+
+- نام: {profile.get('child_name', 'نامشخص')}
+- سن: {profile.get('age', 'نامشخص')} سال
+- قد: {profile.get('height', 'نامشخص')} سانتی‌متر
+- وزن: {profile.get('weight', 'نامشخص')} کیلوگرم
+- رشته ورزشی: {profile.get('sport', 'نامشخص')}
+- روزهای تمرین: {profile.get('sessions', 'نامشخص')} در هفته
+- هدف: {profile.get('goal', 'نامشخص')}
+
+برنامه غذایی شامل:
+🌅 صبحانه
+🍎 میان‌وعده صبح
+🍽️ ناهار
+🍌 میان‌وعده بعدازظهر
+🌙 شام
+
+برنامه رو به فارسی، ساده و کاربردی بنویس. مواد غذایی در دسترس ایرانی باشن."""
+
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 1000,
+                "temperature": 0.7
+            },
+            timeout=30
+        )
+        result = response.json()
+        return result["choices"][0]["message"]["content"]
+    except Exception as e:
+        logger.error(f"Groq error: {e}")
+        return "متأسفانه در دریافت برنامه غذایی مشکلی پیش آمد. دوباره تلاش کنید."
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
@@ -175,7 +218,10 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     except Exception as e:
         logger.error(f"Sheet error: {e}")
 
-    keyboard = [["👤 مشاهده پروفایل"]]
+    keyboard = [
+        ["👤 مشاهده پروفایل"],
+        ["🥗 برنامه غذایی"]
+    ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
     await update.message.reply_text(
@@ -203,7 +249,10 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if not p:
         p = get_profile_from_sheet(str(user_id))
     if p:
-        keyboard = [["👤 مشاهده پروفایل"]]
+        keyboard = [
+            ["👤 مشاهده پروفایل"],
+            ["🥗 برنامه غذایی"]
+        ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
             f"🏅 پروفایل قهرمان کوچک\n"
@@ -221,11 +270,38 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     else:
         await update.message.reply_text("هنوز پروفایلی نداری! /start بزن تا بسازیم 😊")
 
+async def nutrition_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    p = user_profiles.get(user_id)
+    if not p:
+        p = get_profile_from_sheet(str(user_id))
+
+    if not p:
+        await update.message.reply_text("اول باید پروفایل بسازی! /start بزن 😊")
+        return
+
+    await update.message.reply_text("🥗 در حال طراحی برنامه غذایی اختصاصی...\nچند ثانیه صبر کن ⏳")
+
+    plan = get_nutrition_plan(p)
+
+    keyboard = [
+        ["👤 مشاهده پروفایل"],
+        ["🥗 برنامه غذایی"]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+    await update.message.reply_text(
+        f"🥗 برنامه غذایی اختصاصی {p.get('child_name', '')}:\n\n{plan}",
+        reply_markup=reply_markup
+    )
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message and update.message.text:
         text = update.message.text
         if text == "👤 مشاهده پروفایل":
             await profile_command(update, context)
+        elif text == "🥗 برنامه غذایی":
+            await nutrition_command(update, context)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
@@ -266,6 +342,7 @@ def main() -> None:
 
     app.add_handler(conv_handler)
     app.add_handler(CommandHandler("profile", profile_command))
+    app.add_handler(CommandHandler("nutrition", nutrition_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     logger.info("Bot is running.")
