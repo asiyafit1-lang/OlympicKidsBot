@@ -37,7 +37,6 @@ def get_profile_from_sheet(user_id: str) -> dict:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
 
-    # دکمه اشتراک‌گذاری شماره
     phone_button = KeyboardButton(
         text="📱 اشتراک‌گذاری شماره تلفن",
         request_contact=True
@@ -49,25 +48,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
 
     await update.message.reply_text(
-        "سلام! به باشگاه کودک المپیکی خوش اومدی! 🏅\n\n"
-        "اینجا جایی‌ه که ورزشکارهای جوان مثل فرزند شما رشد می‌کنن و قوی‌تر می‌شن 💪\n\n"
-        "✅ پروفایل ورزشی اختصاصی\n"
-        "✅ برنامه تمرینی هوشمند\n"
-        "✅ برنامه غذایی سالم\n"
-        "✅ چالش‌های روزانه انگیزشی\n\n"
-        "برای شروع، لطفاً شماره تماستون رو با ما به اشتراک بذارید 👇",
+        "🏅 باشگاه کودک المپیکی\n\n"
+        "سلام به خانواده عزیز 👋\n\n"
+        "ما اینجاییم تا با کمک هوش مصنوعی، بهترین مسیر ورزشی رو برای فرزند شما طراحی کنیم.\n\n"
+        "🎯 برنامه تمرینی اختصاصی\n"
+        "🥗 تغذیه سالم و علمی\n"
+        "💪 چالش‌های روزانه انگیزشی\n"
+        "📊 پیگیری پیشرفت مستمر\n\n"
+        "برای شروع، شماره تماستون رو با ما به اشتراک بذارید 👇",
         reply_markup=reply_markup
     )
     return PHONE
 
 async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    # اگه از دکمه تلگرام شماره داد
     if update.message.contact:
         phone = update.message.contact.phone_number
         if not phone.startswith('+'):
             phone = '+' + phone
         context.user_data['phone'] = phone
-    # اگه دستی تایپ کرد
     elif update.message.text:
         context.user_data['phone'] = update.message.text
     else:
