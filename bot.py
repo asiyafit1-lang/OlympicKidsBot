@@ -24,6 +24,16 @@ PHONE, NAME, AGE, HEIGHT, WEIGHT, SPORT, SESSIONS, GOAL = range(8)
 
 user_profiles = {}
 
+def get_profile_from_sheet(user_id: str) -> dict:
+    try:
+        response = requests.get(f"{SHEET_URL}?user_id={user_id}", timeout=10)
+        data = response.json()
+        if data.get("found"):
+            return data.get("profile", {})
+    except Exception as e:
+        logger.error(f"Sheet read error: {e}")
+    return {}
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
     await update.message.reply_text(
@@ -162,25 +172,32 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
-    if user_id in user_profiles:
-        p = user_profiles[user_id]
+
+    p = user_profiles.get(user_id)
+
+    if not p:
+        p = get_profile_from_sheet(str(user_id))
+
+    if p:
         keyboard = [["👤 مشاهده پروفایل"]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
             f"🏅 پروفایل قهرمان کوچک\n"
             f"─────────────────\n"
-            f"📱 شماره تماس: {p['phone']}\n"
-            f"👤 نام: {p['name']}\n"
-            f"🎂 سن: {p['age']} سال\n"
-            f"📏 قد: {p['height']} سانتی‌متر\n"
-            f"⚖️ وزن: {p['weight']} کیلوگرم\n"
-            f"⚽ رشته ورزشی: {p['sport']}\n"
-            f"🗓️ روزهای ورزش: {p['sessions']} در هفته\n"
-            f"🎯 هدف: {p['goal']}\n",
+            f"📱 شماره تماس: {p.get('phone', '-')}\n"
+            f"👤 نام: {p.get('child_name', p.get('name', '-'))}\n"
+            f"🎂 سن: {p.get('age', '-')} سال\n"
+            f"📏 قد: {p.get('height', '-')} سانتی‌متر\n"
+            f"⚖️ وزن: {p.get('weight', '-')} کیلوگرم\n"
+            f"⚽ رشته ورزشی: {p.get('sport', '-')}\n"
+            f"🗓️ روزهای ورزش: {p.get('sessions', '-')} در هفته\n"
+            f"🎯 هدف: {p.get('goal', '-')}\n",
             reply_markup=reply_markup
         )
     else:
-        await update.message.reply_text("هنوز پروفایلی نداری! /start بزن 😊")
+        await update.message.reply_text(
+            "هنوز پروفایلی نداری! /start بزن تا بسازیم 😊"
+        )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message and update.message.text:
