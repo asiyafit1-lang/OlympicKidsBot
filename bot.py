@@ -190,7 +190,18 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return GOAL
     context.user_data['goal'] = update.message.text
     user_id = update.effective_user.id
-    user_profiles[user_id] = context.user_data.copy()
+
+    # ← اینجا اصلاح شد: کلیدها یکسان شدن
+    user_profiles[user_id] = {
+        "phone": context.user_data['phone'],
+        "child_name": context.user_data['name'],
+        "age": context.user_data['age'],
+        "height": context.user_data['height'],
+        "weight": context.user_data['weight'],
+        "sport": context.user_data['sport'],
+        "sessions": context.user_data['sessions'],
+        "goal": context.user_data['goal']
+    }
 
     name = context.user_data['name']
     age = context.user_data['age']
@@ -258,7 +269,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"🏅 پروفایل قهرمان کوچک\n"
             f"─────────────────\n"
             f"📱 شماره تماس: {p.get('phone', '-')}\n"
-            f"👤 نام: {p.get('child_name', p.get('name', '-'))}\n"
+            f"👤 نام: {p.get('child_name', '-')}\n"
             f"🎂 سن: {p.get('age', '-')} سال\n"
             f"📏 قد: {p.get('height', '-')} سانتی‌متر\n"
             f"⚖️ وزن: {p.get('weight', '-')} کیلوگرم\n"
@@ -336,6 +347,11 @@ def main() -> None:
         fallbacks=[
             CommandHandler("cancel", cancel),
             CommandHandler("start", start),
+            # ← اینجا اضافه شد: دکمه‌های منو داخل conversation هم کار می‌کنن
+            MessageHandler(
+                filters.Regex("^(👤 مشاهده پروفایل|🥗 برنامه غذایی)$"),
+                handle_message
+            ),
         ],
         allow_reentry=True,
     )
